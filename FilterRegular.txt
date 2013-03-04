@@ -1,0 +1,8 @@
+.ac.uk
+.gov
+.edu
+Amazon.co.uk
+Dhgate.com
+Alibaba.com
+Bbc.co.uk
+Youtube.com

@@ -1,0 +1,21 @@
+findUrls.py 是模块1
+ContactFinder.py 是模块2
+yellowPageDataming.py 是模块3 
+FilterRegular.txt是过滤规则
+database.db是数据库文件
+
+
+中山采购 v1.0 项目文件打包
+
+请确保Python 的环境变量配置好了。
+参考http://www.cnblogs.com/babykick/archive/2011/03/25/1995994.html 的第1、2步骤即可
+
+然后双击运行 第一次使用初始化环境.bat 
+
+文件对应什么模块请看：说明文件.txt
+
+运行脚本方式：
+右键 py文件， 选择 Edit With IDLE
+然后 按F5 运行
+
+谢谢
