@@ -60,7 +60,10 @@ class GoogleSpider():
 
         for url in tempUrls:
             self.titles.append(url.text)
-            self.urls.append(url.a["href"][7:-1])
+            tempurl=url.a["href"][7:]
+            end=tempurl.find("/",7)
+            tempurl=tempurl[0:end+1]
+            self.urls.append(tempurl)
 
     def saveToUrlDB(self,onetuple):
         #onetuple=("", "apple", "broccoli" ,"0")
@@ -84,7 +87,13 @@ class GoogleSpider():
         except:
             print "该数据已经存在数据库中"
 
-    def main(self,word="led light bulbs",max=1000):
+    def main(self,word="led light bulbs",max=1000,sleeptime=0):
+        if not word:
+            word="led light bulbs"
+        if (not max)or max=="0":
+            max=1000
+        else:
+            max=int(max)*10
         self.max=max
         self.country="UK"
         self.word=word
@@ -98,10 +107,18 @@ class GoogleSpider():
             htmlfile=self.getpage(url)
             self.findTitleAndUrl(htmlfile)
             self.saveList()
-            #sleep(5)
+            if (not sleeptime)or sleeptime=="0":
+                sleeptime=5
+            if sleeptime:
+                print "程序自动休息:"+str(sleeptime)+" 秒后继续"
+                sleep(int(sleeptime))
 
 
 if __name__ == "__main__":
     google=GoogleSpider()
-    google.main("shop fitting supplier",500)
+    word=raw_input("请输入你要查询的关键词，例如默认为：led light bulbs >>>")
+    max=raw_input("请输入你要获取的最大页数，默认值是:100页 >>>")
+    sleeptime=raw_input("请输入爬取完一页后休息的时间（秒），默认值为：5 >>>")
+
+    google.main(word,max,sleeptime)
 

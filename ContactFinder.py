@@ -19,7 +19,7 @@ class ContactFinder():
         self.cur = self.con.cursor()
         self.soup=""
         self.title=""
-
+        self.lock=threading.RLock()
         self.max=0
         self.url=""
 
@@ -39,6 +39,7 @@ class ContactFinder():
         self.rawInformations=[]
 
         self.filterWebs=[]
+        self.filterMails=[]
 
         self.cj = cookielib.CookieJar()
         self.opener=urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
@@ -79,7 +80,7 @@ class ContactFinder():
         self.cur.execute("""SELECT * FROM Urls WHERE Dealed=0 Limit %d""" % limit)
         result=self.cur.fetchmany(limit)
         if result:
-            for i in range(0,limit):
+            for i in range(0,len(result)):
                 try:
                     self.keywords.append(result[i][0])
                     self.titles.append(result[i][1])
@@ -216,10 +217,14 @@ class ContactFinder():
         except:
             rawinformation=""
 
+        self.lock.acquire()
+
         self.addresses.append(address)
         self.tels.append(tel)
         self.emails.append(email)
         self.rawInformations.append(rawinformation)
+
+        self.lock.release()
 
     def buildInformationList(self):
         threads=[]
@@ -235,15 +240,16 @@ class ContactFinder():
 
     def formTupleList(self):
         tupleList=[]
-        print len(self.keywords),len(self.urls),len(self.names),len(self.countries),len(self.emails),len(self.addresses),len(self.tels),len(self.rawInformations)
+        #print len(self.keywords),len(self.urls),len(self.names),len(self.countries),len(self.emails),len(self.addresses),len(self.tels),len(self.rawInformations)
 
         for i in range(0,len(self.keywords)):
             try:
                 keyword=self.keywords[i]
             except:
                 keyword=""
+            #原来是url=self.urls[i]
             try:
-                url=self.urls[i]
+                url=self.contacturls[i]
             except:
                 url=""
             try:
@@ -285,6 +291,8 @@ class ContactFinder():
 
     def saveToInformationDB(self,onetuple):
         if self.websiteFiltered(onetuple[1]):
+            return
+        if self.mailFiltered(onetuple[4]):
             return
         sql='INSERT INTO Information (Keyword,Url,Name,Country,Email,Address,Tel,RawInformation) VALUES(?,?,?,?,?,?,?,?)'
         print onetuple[1]+": "+onetuple[2]+ '  Email: ' +onetuple[4]
@@ -339,8 +347,21 @@ class ContactFinder():
                 return True
         return False
 
-    def main(self):
-        while self.fetchFromDB():
+    def mailFiltered(self,url):
+        if not self.filterMails:
+            f=open("FilterMails.txt",'r')
+            self.filterMails=f.readlines()
+            f.close()
+        for filtermail in self.filterMails:
+            if filtermail.rstrip() in url:
+                return True
+        return False
+
+    def main(self,threadLimit=10):
+        print "程序开始运行"
+        if (not threadLimit)or threadLimit=="0":
+            threadLimit=10
+        while self.fetchFromDB(int(threadLimit)):
             #self.fetchFromDB()
             self.dealUrlList()
             self.findCompanyNames()
@@ -355,4 +376,6 @@ class ContactFinder():
 
 if __name__ == "__main__":
     finder=ContactFinder()
-    finder.main()
+
+    threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
+    finder.main(threadLimit)

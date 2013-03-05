@@ -15,9 +15,10 @@ import threading
 
 class YellowPageSpider():
     def __init__(self):
+        self.lock=threading.RLock()
         self.con = sqlite3.connect('./database.db')
         self.cur = self.con.cursor()
-        #self.con.text_factory=str
+
         self.soup=""
         self.title=""
         self.originurl = 'http://www.amarillas.cl/buscar/'
@@ -42,6 +43,7 @@ class YellowPageSpider():
         self.tels=[]
         self.rawInformations=[]
 
+        self.filterMails=[]
         self.cj = cookielib.CookieJar()
         self.opener=urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
         self.opener.addheaders = [('User-agent', 'Opera/9.23')]
@@ -81,7 +83,7 @@ class YellowPageSpider():
         self.cur.execute("""SELECT * FROM Urls_Amarillas WHERE Dealed=0 Limit %d""" % limit)
         result=self.cur.fetchmany(limit)
         if result:
-            for i in range(0,limit):
+            for i in range(0,len(result)):
                 try:
                     self.keywords.append(result[i][0])
                     #self.titles.append(result[i][1])
@@ -108,11 +110,15 @@ class YellowPageSpider():
 
     def dealContactPage(self,url):
         if not url:
+            self.lock.acquire()
+
             self.names.append("")
             self.addresses.append("")
             self.tels.append("")
             self.emails.append("")
             self.rawInformations.append("")
+
+            self.lock.release()
             return
 
         htmlfile=self.getpage(url)
@@ -120,10 +126,10 @@ class YellowPageSpider():
         soup=BeautifulSoup(htmlfile,'lxml')
 
         companyname=soup.find_all("h2",{"class":"fn org"})
-
         emails=soup.find_all("a",{"href":re.compile(r"javascript:openMail(.*);",re.DOTALL)})
         addresses=soup.find_all("address",{"class":"street"})
         tels=soup.find_all("span",{"class":"phoneSpan"})
+        rawinformations=soup.find_all("ul",{"id":"descriptionTools"})
 
         name=""
         if companyname:
@@ -139,21 +145,22 @@ class YellowPageSpider():
             if maillist:
                 email=maillist[0]
 
-        tel=""
         if tels:
             tel=tels[0].text.replace("&nbsp;"," ").strip()
 
-
-        #try:
-        #rawinformation=ExtMainText.main(htmlfile)
-        #except:
         rawinformation=""
+        if rawinformations:
+            rawinformation=rawinformations[0].get_text().strip()
+
+        self.lock.acquire()
 
         self.names.append(name)
         self.addresses.append(address)
         self.tels.append(tel)
         self.emails.append(email)
         self.rawInformations.append(rawinformation)
+
+        self.lock.release()
 
     def buildInformationList(self):
         threads=[]
@@ -239,7 +246,8 @@ class YellowPageSpider():
             print "该数据已经存在数据库中"
 
     def saveToInformationDB(self,onetuple):
-
+        if self.mailFiltered(onetuple[4]):
+            return
         sql='INSERT INTO Information (Keyword,Url,Name,Country,Email,Address,Tel,RawInformation) VALUES(?,?,?,?,?,?,?,?)'
         print onetuple[1]+": "+onetuple[2]+"  Email: "+onetuple[4]
 
@@ -309,7 +317,34 @@ class YellowPageSpider():
             for infourl in infourls:
                 self.contacturls.append(infourl["href"])
 
-    def mainGetUrls(self,word="INGENIERÍA DE PROYECTOS",max=50):
+    def getLocals(self):
+        f=open("Location.txt",'r')
+        locals=f.readlines()
+        f.close()
+        location=[]
+        if len(locals)==0:
+            return []
+        else:
+            for local in locals:
+                location.append(local.strip())
+            return location
+
+
+    def mailFiltered(self,url):
+        if not self.filterMails:
+            f=open("FilterMails.txt",'r')
+            self.filterMails=f.readlines()
+            f.close()
+        for filtermail in self.filterMails:
+            if filtermail.rstrip() in url:
+                return True
+        return False
+
+
+    def mainGetUrls(self,word="INGENIERÍA DE PROYECTOS",max=0,local=0):
+        if not word:
+            word="INGENIERÍA DE PROYECTOS"
+
         self.max=max
         self.country="CL"
         self.word=word
@@ -317,42 +352,89 @@ class YellowPageSpider():
             "":word
         }
         url=self.originurl + urllib.urlencode(keyword)[1:]+"/"
-        self.goalurl=url
-        self.getseed()
-        self.max=int(int(self.maxitem)/35)+1
-        #self.max=2
-        print "there are %s results." % self.maxitem
 
-        print " 正在获取每一个分页的信息."
-        self.page=1
-        for p in range(2,self.max+1):
-            self.page=p
-            print "Dealing page: ",p
-            url=self.goalurl + "?seed=" + str(self.seed) + "&page=" + str(self.page)
-            self.getPageUrls(url)
-        print "已经获得了所有分页信息，准备写入Url数据库."
+        if (not local) or (not local=="1"):
+            locals=self.getLocals()
+            if locals:
+                for l in locals:
+                    tempLocal={
+                        "":l
+                    }
+                    location=urllib.urlencode(tempLocal)[1:]+"/"
+                    print "正在获取地区："+l
+                    self.goalurl=url+location
+                    self.getseed()
+                    self.max=int(int(self.maxitem)/35)+1
 
-        self.saveUrlList()
-        self.contacturls=[]
+                    if max!=0:
+                        if max<self.max :
+                            self.max=max
 
-    def mainMiningInfor(self):
+                    #self.max=2
+                    print "there are %s results." % self.maxitem
+
+                    print " 正在获取每一个分页的信息."
+                    self.page=1
+                    for p in range(1,self.max+1):
+                        self.page=p
+                        print "Dealing page: ",p
+                        url=self.goalurl + "?seed=" + str(self.seed) + "&page=" + str(self.page)
+                        self.getPageUrls(url)
+                    print "已经获得了所有分页信息，准备写入Url数据库."
+
+                    self.saveUrlList()
+                    self.contacturls=[]
+        else:
+            self.goalurl=url
+            self.getseed()
+            self.max=int(int(self.maxitem)/35)+1
+
+            if max!=0:
+                if max<self.max :
+                    self.max=max
+
+            #self.max=2
+            print "there are %s results." % self.maxitem
+
+            print " 正在获取每一个分页的信息."
+            self.page=1
+            for p in range(1,self.max+1):
+                self.page=p
+                print "Dealing page: ",p
+                url=self.goalurl + "?seed=" + str(self.seed) + "&page=" + str(self.page)
+                self.getPageUrls(url)
+            print "已经获得了所有分页信息，准备写入Url数据库."
+
+            self.saveUrlList()
+            self.contacturls=[]
+
+    def mainMiningInfor(self,threadLimit=10):
         #self.fetchFromDB(30)
         #self.dealContactPage("http://www.amarillas.cl/empresa/naser_ingenieria_ltda-301309390/")
-        while self.fetchFromDB(10):
+        if (not threadLimit)or threadLimit=="0":
+            threadLimit=10
+        while self.fetchFromDB(threadLimit):
             self.buildInformationList()
             tupleList=self.formTupleList()
             self.saveInforList(tupleList)
             self.updateUrlDB()
             self.initList()
 
-    def main(self,word="INGENIERÍA DE PROYECTOS",max=50):
+    def main(self,word="INGENIERÍA DE PROYECTOS",max=0,threadLimit=10,local=0):
 
         print "程序开始运行："
-        self.mainGetUrls(word,max)
-        self.mainMiningInfor()
+        self.mainGetUrls(word,max,local)
+        self.mainMiningInfor(threadLimit)
         print "程序全部运行完毕，成功。"
 
 
 if __name__ == "__main__":
     yellowpage=YellowPageSpider()
-    yellowpage.main("Searle Cia Arquitectos Edmundo")
+    #yellowpage.main("CONSTRUCTORA RSR")
+
+    word=raw_input("请输入你要查询的关键词，例如默认为：INGENIERÍA DE PROYECTOS >>>")
+    max=raw_input("请输入你要获取的最大页数，默认值是:0,即可自动获取数并判断最大页 >>>")
+    threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
+    local=raw_input("是否查询Location.txt中的地区，是请输入1，不是请输入0，默认值为：0 >>>")
+
+    yellowpage.main(word,max,threadLimit,local)
