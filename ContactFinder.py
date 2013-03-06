@@ -19,7 +19,6 @@ class ContactFinder():
         self.cur = self.con.cursor()
         self.soup=""
         self.title=""
-        self.lock=threading.RLock()
         self.max=0
         self.url=""
 
@@ -79,13 +78,14 @@ class ContactFinder():
     def fetchFromDB(self,limit=10):
         self.cur.execute("""SELECT * FROM Urls WHERE Dealed=0 Limit %d""" % limit)
         result=self.cur.fetchmany(limit)
+        print "正在从数据库获取链接"
         if result:
             for i in range(0,len(result)):
                 try:
-                    self.keywords.append(result[i][0])
-                    self.titles.append(result[i][1])
-                    self.originurls.append(result[i][2])
-                    self.countries.append(result[i][3])
+                    self.keywords[i]=result[i][0]
+                    self.titles[i]=result[i][1]
+                    self.originurls[i]=result[i][2]
+                    self.countries[i]=result[i][3]
                 except:
                     print "finish!"
                     return False
@@ -94,9 +94,10 @@ class ContactFinder():
             return False
 
     def findCompanyNames(self):
-        self.names=[]
+        i=0
         for url in self.urls:
-            self.names.append(url[url.find(".",0)+1:url.find(".",11)])
+            self.names[i]=url[url.find(".",0)+1:url.find(".",11)]
+            i+=1
             #print self.names
 
     def dealUrl(self,url):
@@ -109,14 +110,16 @@ class ContactFinder():
         return url
 
     def dealUrlList(self):
-        self.urls=[]
+        i=0
         for url in self.originurls:
-            self.urls.append(self.dealUrl(url))
+            self.urls[i]=self.dealUrl(url)
+            i+=1
 
-    def findContactPageUrl(self,url):
+    def findContactPageUrl(self,url,i):
         result=""
+        print "正在链接找寻相关联系方式页面： ",url
         if not url:
-            self.contacturls.append(result)
+            self.contacturls[i]=result
             return result
         htmlfile=self.getpage(url)
         soup=BeautifulSoup(htmlfile,'lxml')
@@ -124,61 +127,59 @@ class ContactFinder():
         support=soup.find("a",{"href":re.compile(r".*?support.*?",re.DOTALL|re.IGNORECASE)})
         if support:
             if support["href"].startswith("/"):
-                self.contacturls.append(url+support["href"])
+                self.contacturls[i]=url+support["href"]
                 return url+support["href"]
             elif len(support["href"])<20:
-                self.contacturls.append(url+"/"+support["href"])
+                self.contacturls[i]=url+"/"+support["href"]
                 return url+"/"+support["href"]
             else:
-                self.contacturls.append(support["href"])
+                self.contacturls[i]=support["href"]
                 return support["href"]
 
         contact=soup.find("a",{"href":re.compile(r".*?contact.*?",re.DOTALL|re.IGNORECASE)})
         if contact:
             if contact["href"].startswith("/"):
-                self.contacturls.append(url+contact["href"])
+                self.contacturls[i]=url+contact["href"]
                 return url+contact["href"]
             elif len(contact["href"])<20:
-                self.contacturls.append(url+"/"+contact["href"])
+                self.contacturls[i]=url+"/"+contact["href"]
                 return url+"/"+contact["href"]
             else:
-                self.contacturls.append(contact["href"])
+                self.contacturls[i]=contact["href"]
                 return contact["href"]
 
         about=soup.find("a",{"href":re.compile(r".*?about.*?",re.DOTALL|re.IGNORECASE)})
         if about:
             if about["href"].startswith("/"):
-                self.contacturls.append(url+about["href"])
+                self.contacturls[i]=url+about["href"]
                 return url+about["href"]
             elif len(about["href"])<20:
-                self.contacturls.append(url+"/"+about["href"])
+                self.contacturls[i]=url+"/"+about["href"]
                 return url+"/"+about["href"]
             else:
-                self.contacturls.append(about["href"])
+                self.contacturls[i]=about["href"]
                 return about["href"]
 
-        self.contacturls.append("")
+        #self.contacturls.append("")
         return ""
 
     def buildContactUrlList(self):
-        self.contacturls=[]
+
         threads=[]
+        index=0
         for url in self.urls:
-            t=threading.Thread(target=self.findContactPageUrl,args=(url,))
+            t=threading.Thread(target=self.findContactPageUrl,args=(url,index,))
+            index+=1
             t.setDaemon(True)
             threads.append(t)
             t.start()
         for t in threads:
             t.join()
 
-    def dealContactPage(self,url):
+    def dealContactPage(self,url,i):
         if not url:
-            self.addresses.append("")
-            self.tels.append("")
-            self.emails.append("")
-            self.rawInformations.append("")
             return
-            #url="http://www.simplyled.co.uk/Contact"
+        print "正在分析该页面的联系方式信息:",url
         htmlfile=self.getpage(url)
         #print htmlfile
         #address re pattern ([\w\d\s]*,){3,8}([\w\d\s~.]*?.){1,5}
@@ -203,10 +204,12 @@ class ContactFinder():
             address=addresses[0].strip()
         else:
             address=""
+
         if tels:
             tel=tels[0].strip()
         else:
             tel=""
+
         if emails:
             email=emails[0].strip()
         else:
@@ -217,19 +220,19 @@ class ContactFinder():
         except:
             rawinformation=""
 
-        self.lock.acquire()
 
-        self.addresses.append(address)
-        self.tels.append(tel)
-        self.emails.append(email)
-        self.rawInformations.append(rawinformation)
+        self.addresses[i]=address
+        self.tels[i]=tel
+        self.emails[i]=email
+        self.rawInformations[i]=rawinformation
 
-        self.lock.release()
 
     def buildInformationList(self):
         threads=[]
+        index=0
         for url in self.contacturls:
-            t=threading.Thread(target=self.dealContactPage,args=(url,))
+            t=threading.Thread(target=self.dealContactPage,args=(url,index,))
+            index+=1
             t.setDaemon(True)
             threads.append(t)
             t.start()
@@ -294,6 +297,8 @@ class ContactFinder():
             return
         if self.mailFiltered(onetuple[4]):
             return
+        if not onetuple[1].strip():
+            return
         sql='INSERT INTO Information (Keyword,Url,Name,Country,Email,Address,Tel,RawInformation) VALUES(?,?,?,?,?,?,?,?)'
         print onetuple[1]+": "+onetuple[2]+ '  Email: ' +onetuple[4]
 
@@ -324,18 +329,21 @@ class ContactFinder():
         except BaseException,e:
             print e,"cannot update Dealed ."
 
-    def initList(self):
-        self.keywords=[]
-        self.originurls=[]
-        self.urls=[]
-        self.contacturls=[]
-        self.titles=[]
-        self.countries=[]
-        self.names=[]
-        self.emails=[]
-        self.addresses=[]
-        self.tels=[]
-        self.rawInformations=[]
+    def initList(self,threadLimit=10):
+        if (not threadLimit)or threadLimit=="0":
+            threadLimit=10
+        print "初始化列表中"
+        self.keywords=["" for i in range(int(threadLimit))]
+        self.originurls=["" for i in range(int(threadLimit))]
+        self.urls=["" for i in range(int(threadLimit))]
+        self.contacturls=["" for i in range(int(threadLimit))]
+        self.titles=["" for i in range(int(threadLimit))]
+        self.countries=["" for i in range(int(threadLimit))]
+        self.names=["" for i in range(int(threadLimit))]
+        self.emails=["" for i in range(int(threadLimit))]
+        self.addresses=["" for i in range(int(threadLimit))]
+        self.tels=["" for i in range(int(threadLimit))]
+        self.rawInformations=["" for i in range(int(threadLimit))]
 
     def websiteFiltered(self,url):
         if not self.filterWebs:
@@ -343,7 +351,7 @@ class ContactFinder():
             self.filterWebs=f.readlines()
             f.close()
         for filterweb in self.filterWebs:
-            if filterweb.rstrip() in url:
+            if filterweb.rstrip().lower() in url.lower():
                 return True
         return False
 
@@ -353,14 +361,17 @@ class ContactFinder():
             self.filterMails=f.readlines()
             f.close()
         for filtermail in self.filterMails:
-            if filtermail.rstrip() in url:
+            if filtermail.rstrip().lower() in url.lower():
                 return True
         return False
 
     def main(self,threadLimit=10):
         print "程序开始运行"
+        self.initList()
+
         if (not threadLimit)or threadLimit=="0":
             threadLimit=10
+
         while self.fetchFromDB(int(threadLimit)):
             #self.fetchFromDB()
             self.dealUrlList()
@@ -379,3 +390,4 @@ if __name__ == "__main__":
 
     threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
     finder.main(threadLimit)
+    #finder.initList()

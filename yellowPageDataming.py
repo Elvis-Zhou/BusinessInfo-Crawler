@@ -336,7 +336,7 @@ class YellowPageSpider():
             self.filterMails=f.readlines()
             f.close()
         for filtermail in self.filterMails:
-            if filtermail.rstrip() in url:
+            if filtermail.rstrip().lower() in url.lower():
                 return True
         return False
 

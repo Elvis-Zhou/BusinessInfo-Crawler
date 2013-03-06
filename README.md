@@ -31,3 +31,5 @@ ContactFinder.py 是模块2  寻找页面内的公司信息，EMAIL,TEL,ADDRESS�
 yellowPageDataming.py 是模块3 某个黄页的信息提取
 FilterRegular.txt是过滤规则  过滤掉不要的页面
 database.db是数据库文件 自己设计用来存储这些信息的数据库
+
+以后的改动会写在更新说明里。

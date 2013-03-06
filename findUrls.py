@@ -112,7 +112,7 @@ class GoogleSpider():
             if sleeptime:
                 print "程序自动休息:"+str(sleeptime)+" 秒后继续"
                 sleep(int(sleeptime))
-
+        print "程序运行结束."
 
 if __name__ == "__main__":
     google=GoogleSpider()
