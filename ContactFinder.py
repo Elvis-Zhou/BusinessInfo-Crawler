@@ -179,7 +179,7 @@ class ContactFinder():
     def dealContactPage(self,url,i):
         if not url:
             return
-        print "正在分析该页面的联系方式信息:",url
+        print "正在分析该页面的联系方式信息: ",url
         htmlfile=self.getpage(url)
         #print htmlfile
         #address re pattern ([\w\d\s]*,){3,8}([\w\d\s~.]*?.){1,5}
@@ -226,6 +226,9 @@ class ContactFinder():
         self.emails[i]=email
         self.rawInformations[i]=rawinformation
 
+        result=(address,tel,email,rawinformation)
+
+        return result
 
     def buildInformationList(self):
         threads=[]
@@ -332,7 +335,7 @@ class ContactFinder():
     def initList(self,threadLimit=10):
         if (not threadLimit)or threadLimit=="0":
             threadLimit=10
-        print "初始化列表中"
+        #print "初始化列表中"
         self.keywords=["" for i in range(int(threadLimit))]
         self.originurls=["" for i in range(int(threadLimit))]
         self.urls=["" for i in range(int(threadLimit))]

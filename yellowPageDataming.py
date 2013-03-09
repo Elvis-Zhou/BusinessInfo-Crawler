@@ -353,7 +353,7 @@ class YellowPageSpider():
         }
         url=self.originurl + urllib.urlencode(keyword)[1:]+"/"
 
-        if (not local) or (not local=="1"):
+        if (not local) and (not local=="1"):
             locals=self.getLocals()
             if locals:
                 for l in locals:
@@ -437,4 +437,4 @@ if __name__ == "__main__":
     threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
     local=raw_input("是否查询Location.txt中的地区，是请输入1，不是请输入0，默认值为：0 >>>")
 
-    yellowpage.main(word,max,threadLimit,local)
+    yellowpage.main(word,int(max),int(threadLimit),int(local))
