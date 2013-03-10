@@ -10,13 +10,13 @@ import re
 from bs4 import BeautifulSoup
 urllib2.socket.setdefaulttimeout(30)
 import chardet
-import ExtMainText
+
 import threading
 
 class YellowPageSpider():
     def __init__(self):
         self.lock=threading.RLock()
-        self.con = sqlite3.connect('./database.db')
+        self.con = sqlite3.connect('../database.db')
         self.cur = self.con.cursor()
 
         self.soup=""

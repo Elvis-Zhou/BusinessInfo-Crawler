@@ -15,7 +15,7 @@ import threading
 
 class ContactFinder():
     def __init__(self):
-        self.con = sqlite3.connect('./database.db')
+        self.con = sqlite3.connect('../database.db')
         self.cur = self.con.cursor()
         self.soup=""
         self.title=""
@@ -117,10 +117,14 @@ class ContactFinder():
 
     def findContactPageUrl(self,url,i):
         result=""
-        print "正在链接找寻相关联系方式页面： ",url
         if not url:
             self.contacturls[i]=result
             return result
+        if not url.startswith("http"):
+            self.contacturls[i]=result
+            return result
+        print "正在链接找寻相关联系方式页面： ",url
+
         htmlfile=self.getpage(url)
         soup=BeautifulSoup(htmlfile,'lxml')
 
@@ -129,7 +133,7 @@ class ContactFinder():
             if support["href"].startswith("/"):
                 self.contacturls[i]=url+support["href"]
                 return url+support["href"]
-            elif len(support["href"])<20:
+            elif len(support["href"])<25:
                 self.contacturls[i]=url+"/"+support["href"]
                 return url+"/"+support["href"]
             else:
@@ -141,7 +145,7 @@ class ContactFinder():
             if contact["href"].startswith("/"):
                 self.contacturls[i]=url+contact["href"]
                 return url+contact["href"]
-            elif len(contact["href"])<20:
+            elif len(contact["href"])<25:
                 self.contacturls[i]=url+"/"+contact["href"]
                 return url+"/"+contact["href"]
             else:
@@ -153,12 +157,87 @@ class ContactFinder():
             if about["href"].startswith("/"):
                 self.contacturls[i]=url+about["href"]
                 return url+about["href"]
-            elif len(about["href"])<20:
+            elif len(about["href"])<25:
                 self.contacturls[i]=url+"/"+about["href"]
                 return url+"/"+about["href"]
             else:
                 self.contacturls[i]=about["href"]
                 return about["href"]
+
+        findus=soup.find("a",{"href":re.compile(r".*?find[-]us.*?",re.DOTALL|re.IGNORECASE)})
+        if findus:
+            if findus["href"].startswith("/"):
+                self.contacturls[i]=url+findus["href"]
+                return url+findus["href"]
+            elif len(findus["href"])<25:
+                self.contacturls[i]=url+"/"+findus["href"]
+                return url+"/"+findus["href"]
+            else:
+                self.contacturls[i]=findus["href"]
+                return findus["href"]
+
+        #self.contacturls.append("")
+        return ""
+
+    def findContactPageUrl(self,url,i):
+        result=""
+        if not url:
+            self.contacturls[i]=result
+            return result
+        if not url.startswith("http"):
+            self.contacturls[i]=result
+            return result
+        print "正在链接找寻相关联系方式页面： ",url
+
+        htmlfile=self.getpage(url)
+        soup=BeautifulSoup(htmlfile,'lxml')
+
+        support=soup.find("a",{"href":re.compile(r".*?support.*?",re.DOTALL|re.IGNORECASE)})
+        if support:
+            if support["href"].startswith("/"):
+                self.contacturls[i]=url+support["href"]
+                return url+support["href"]
+            elif len(support["href"])<25:
+                self.contacturls[i]=url+"/"+support["href"]
+                return url+"/"+support["href"]
+            else:
+                self.contacturls[i]=support["href"]
+
+        contact=soup.find("a",{"href":re.compile(r".*?contact.*?",re.DOTALL|re.IGNORECASE)})
+        if contact:
+            if contact["href"].startswith("/"):
+                self.contacturls[i]=url+contact["href"]
+                return url+contact["href"]
+            elif len(contact["href"])<25:
+                self.contacturls[i]=url+"/"+contact["href"]
+                return url+"/"+contact["href"]
+            else:
+                self.contacturls[i]=contact["href"]
+                return contact["href"]
+
+        about=soup.find("a",{"href":re.compile(r".*?about.*?",re.DOTALL|re.IGNORECASE)})
+        if about:
+            if about["href"].startswith("/"):
+                self.contacturls[i]=url+about["href"]
+                return url+about["href"]
+            elif len(about["href"])<25:
+                self.contacturls[i]=url+"/"+about["href"]
+                return url+"/"+about["href"]
+            else:
+                self.contacturls[i]=about["href"]
+                return about["href"]
+
+        findus=soup.find("a",{"href":re.compile(r".*?find[-]us.*?",re.DOTALL|re.IGNORECASE)})
+        if findus:
+            if findus["href"].startswith("/"):
+                self.contacturls[i]=url+findus["href"]
+                return url+findus["href"]
+            elif len(findus["href"])<25:
+                self.contacturls[i]=url+"/"+findus["href"]
+                return url+"/"+findus["href"]
+            else:
+                self.contacturls[i]=findus["href"]
+                return findus["href"]
 
         #self.contacturls.append("")
         return ""
@@ -179,7 +258,7 @@ class ContactFinder():
     def dealContactPage(self,url,i):
         if not url:
             return
-        print "正在分析该页面的联系方式信息: ",url
+        print "Analyzing the web page to get the contact information: ",url
         htmlfile=self.getpage(url)
         #print htmlfile
         #address re pattern ([\w\d\s]*,){3,8}([\w\d\s~.]*?.){1,5}

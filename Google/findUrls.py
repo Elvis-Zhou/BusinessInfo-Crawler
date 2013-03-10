@@ -11,7 +11,7 @@ urllib2.socket.setdefaulttimeout(30)
 
 class GoogleSpider():
     def __init__(self):
-        self.con = sqlite3.connect('./database.db')
+        self.con = sqlite3.connect('../database.db')
         self.cur = self.con.cursor()
         self.soup=""
         self.title=""
@@ -32,6 +32,7 @@ class GoogleSpider():
 
     def getpage(self,url):
         requset=urllib2.Request(url)
+        requset.add_header('User-agent', 'Opera/9.23')
         i=0
         t=0
         htmlfile=""
@@ -44,7 +45,8 @@ class GoogleSpider():
                 else:
                     i+=1
                     #continue
-            except :
+            except BaseException,e:
+                #print e
                 i+=1
             if i>=5:break
         #self.htmlfile=htmlfile
@@ -87,6 +89,23 @@ class GoogleSpider():
         except:
             print "该数据已经存在数据库中"
 
+    def getBestUrl(self,word="led light bulbs"):
+        keyword={
+            "q":word
+        }
+        url=self.originurl % (urllib.urlencode(keyword),str(0))
+        htmlfile=self.getpage(url)
+        soup=BeautifulSoup(htmlfile,'lxml')
+
+        tempUrls=soup.find_all("h3",{"class":"r"})
+
+        try:
+            tempurl=tempUrls[0].a["href"][7:]
+
+            return tempurl
+        except BaseException:
+            return ""
+
     def main(self,word="led light bulbs",max=1000,sleeptime=0):
         if not word:
             word="led light bulbs"
@@ -116,9 +135,9 @@ class GoogleSpider():
 
 if __name__ == "__main__":
     google=GoogleSpider()
+    print google.getBestUrl("Abracad Architects")
     word=raw_input("请输入你要查询的关键词，例如默认为：led light bulbs >>>")
     max=raw_input("请输入你要获取的最大页数，默认值是:100页 >>>")
     sleeptime=raw_input("请输入爬取完一页后休息的时间（秒），默认值为：5 >>>")
 
     google.main(word,max,sleeptime)
-
