@@ -315,7 +315,7 @@ class Spider192():
                         "looking_for":word,
                         "location":l,
                         "page":self.page,
-                    }
+                        }
                     url=self.originurl + urllib.urlencode(keyword)
                     print "正在获取地区："+l
                     self.goalurl=url
@@ -328,7 +328,7 @@ class Spider192():
                                 self.max=int(max)
                     except:
                         pass
-                    #self.max=2
+                        #self.max=2
                     print "there are %s results." % self.maxitem
 
                     print " 正在获取每一个分页的信息."
@@ -366,7 +366,7 @@ class Spider192():
                         self.max=int(max)
             except:
                 pass
-            #self.max=2
+                #self.max=2
             print "there are %s results." % self.maxitem
 
             print " 正在处理每一个分页的信息."

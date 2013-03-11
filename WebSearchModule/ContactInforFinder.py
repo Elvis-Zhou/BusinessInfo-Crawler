@@ -12,7 +12,9 @@ urllib2.socket.setdefaulttimeout(30)
 import chardet
 import ExtMainText
 import threading
-
+import sys
+sys.path.append("..")
+from InputModule import Inputs,FliterRegular
 class ContactFinder():
     def __init__(self):
         self.con = sqlite3.connect('../database.db')
@@ -62,11 +64,9 @@ class ContactFinder():
                     break
                 else:
                     i+=1
-                    #continue
             except :
                 i+=1
             if i>=5:break
-            #self.htmlfile=htmlfile
         #print self.htmlfile
         try:
             charset=chardet.detect(htmlfile)["encoding"]
@@ -98,10 +98,8 @@ class ContactFinder():
         for url in self.urls:
             self.names[i]=url[url.find(".",0)+1:url.find(".",11)]
             i+=1
-            #print self.names
 
     def dealUrl(self,url):
-        #url=self.urls[0]
         if not url.startswith("http://"):
             return ""
         end=url.find("/",7)
@@ -179,14 +177,8 @@ class ContactFinder():
         #self.contacturls.append("")
         return ""
 
-    def findContactPageUrl(self,url,i):
+    def findContactPageUrl(self,url):
         result=""
-        if not url:
-            self.contacturls[i]=result
-            return result
-        if not url.startswith("http"):
-            self.contacturls[i]=result
-            return result
         print "正在链接找寻相关联系方式页面： ",url
 
         htmlfile=self.getpage(url)
@@ -195,55 +187,54 @@ class ContactFinder():
         support=soup.find("a",{"href":re.compile(r".*?support.*?",re.DOTALL|re.IGNORECASE)})
         if support:
             if support["href"].startswith("/"):
-                self.contacturls[i]=url+support["href"]
+
                 return url+support["href"]
             elif len(support["href"])<25:
-                self.contacturls[i]=url+"/"+support["href"]
+
                 return url+"/"+support["href"]
             else:
-                self.contacturls[i]=support["href"]
+
+                return support["href"]
 
         contact=soup.find("a",{"href":re.compile(r".*?contact.*?",re.DOTALL|re.IGNORECASE)})
         if contact:
             if contact["href"].startswith("/"):
-                self.contacturls[i]=url+contact["href"]
+
                 return url+contact["href"]
             elif len(contact["href"])<25:
-                self.contacturls[i]=url+"/"+contact["href"]
+
                 return url+"/"+contact["href"]
             else:
-                self.contacturls[i]=contact["href"]
+
                 return contact["href"]
 
         about=soup.find("a",{"href":re.compile(r".*?about.*?",re.DOTALL|re.IGNORECASE)})
         if about:
             if about["href"].startswith("/"):
-                self.contacturls[i]=url+about["href"]
+
                 return url+about["href"]
             elif len(about["href"])<25:
-                self.contacturls[i]=url+"/"+about["href"]
+
                 return url+"/"+about["href"]
             else:
-                self.contacturls[i]=about["href"]
+
                 return about["href"]
 
         findus=soup.find("a",{"href":re.compile(r".*?find[-]us.*?",re.DOTALL|re.IGNORECASE)})
         if findus:
             if findus["href"].startswith("/"):
-                self.contacturls[i]=url+findus["href"]
+
                 return url+findus["href"]
             elif len(findus["href"])<25:
-                self.contacturls[i]=url+"/"+findus["href"]
+
                 return url+"/"+findus["href"]
             else:
-                self.contacturls[i]=findus["href"]
+
                 return findus["href"]
 
-        #self.contacturls.append("")
         return ""
 
     def buildContactUrlList(self):
-
         threads=[]
         index=0
         for url in self.urls:
@@ -309,6 +300,55 @@ class ContactFinder():
 
         return result
 
+    def dealContactPage(self,url):
+        if not url:
+            return
+        print "Analyzing the web page to get the contact information: ",url
+        htmlfile=self.getpage(url)
+
+        try:
+            addresses=re.findall(r"(?:[\w\d\s]*,){3,10}(?:[\w\d\s]*?\.)",htmlfile,re.DOTALL)
+        except:
+            addresses=""
+
+        try:
+            tels=re.findall(r"\d{2,7}\s+[\d\s]{2,10}\d+",htmlfile,re.DOTALL)
+        except:
+            tels=""
+
+        try:
+            emails=re.findall(r"\w+(?:[-+.]\w+)*@\w+(?:[-.]\w+)*\.\w+(?:[-.]\w+)*",htmlfile,re.DOTALL)
+        except:
+            emails=""
+
+        if addresses:
+            address=addresses[0].strip()
+        else:
+            address=""
+
+        if tels:
+            tel=tels[0].strip()
+        else:
+            tel=""
+
+        if emails:
+            tempemails=[]
+            for e in emails:
+                tempemails.append(e.strip())
+            email="\n".join(tempemails)
+        else:
+            email=""
+
+        try:
+            rawinformation=ExtMainText.main(htmlfile)
+        except:
+            rawinformation=""
+
+
+        result=(address,tel,email,rawinformation)
+
+        return result
+
     def buildInformationList(self):
         threads=[]
         index=0
@@ -318,14 +358,11 @@ class ContactFinder():
             t.setDaemon(True)
             threads.append(t)
             t.start()
-            #self.dealContactPage(url)
         for t in threads:
             t.join()
 
-
     def formTupleList(self):
         tupleList=[]
-        #print len(self.keywords),len(self.urls),len(self.names),len(self.countries),len(self.emails),len(self.addresses),len(self.tels),len(self.rawInformations)
 
         for i in range(0,len(self.keywords)):
             try:
@@ -375,9 +412,9 @@ class ContactFinder():
         return tupleList
 
     def saveToInformationDB(self,onetuple):
-        if self.websiteFiltered(onetuple[1]):
+        if FliterRegular.websiteFiltered(onetuple[1]):
             return
-        if self.mailFiltered(onetuple[4]):
+        if FliterRegular.mailFiltered(onetuple[4]):
             return
         if not onetuple[1].strip():
             return
@@ -427,25 +464,7 @@ class ContactFinder():
         self.tels=["" for i in range(int(threadLimit))]
         self.rawInformations=["" for i in range(int(threadLimit))]
 
-    def websiteFiltered(self,url):
-        if not self.filterWebs:
-            f=open("FilterRegular.txt",'r')
-            self.filterWebs=f.readlines()
-            f.close()
-        for filterweb in self.filterWebs:
-            if filterweb.rstrip().lower() in url.lower():
-                return True
-        return False
 
-    def mailFiltered(self,url):
-        if not self.filterMails:
-            f=open("FilterMails.txt",'r')
-            self.filterMails=f.readlines()
-            f.close()
-        for filtermail in self.filterMails:
-            if filtermail.rstrip().lower() in url.lower():
-                return True
-        return False
 
     def main(self,threadLimit=10):
         print "程序开始运行"

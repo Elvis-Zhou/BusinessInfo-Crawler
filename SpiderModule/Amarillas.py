@@ -10,40 +10,41 @@ import re
 from bs4 import BeautifulSoup
 urllib2.socket.setdefaulttimeout(30)
 import chardet
-
 import threading
 
 class YellowPageSpider():
     def __init__(self):
+        #多线程
         self.lock=threading.RLock()
+        #数据库连接
         self.con = sqlite3.connect('../database.db')
         self.cur = self.con.cursor()
-
+        #基本属性
+        self.htmlfile=""
         self.soup=""
+        self.country=""
         self.title=""
-        self.originurl = 'http://www.amarillas.cl/buscar/'
+        self.url=""
+        self.originurl = ''
         self.goalurl=""
         self.seed=""
         self.max=0
-        self.url=""
         self.maxitem=0
-
-        self.htmlfile=""
-        self.country=""
-
+        #要存入的参数
         self.keywords=[]
-        self.originurls=[]
+        self.homepageUrls=[]
         self.urls=[]
         self.contacturls=[]
-        self.titles=[]
+        #self.titles=[]
         self.countries=[]
         self.names=[]
         self.emails=[]
         self.addresses=[]
         self.tels=[]
         self.rawInformations=[]
+        #self.filterMails=[]
 
-        self.filterMails=[]
+        #浏览器伪装
         self.cj = cookielib.CookieJar()
         self.opener=urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
         self.opener.addheaders = [('User-agent', 'Opera/9.23')]
@@ -53,7 +54,6 @@ class YellowPageSpider():
     def getpage(self,url):
         if not url.startswith("http"):
             return
-
         requset=urllib2.Request(url)
         i=0
         t=0
@@ -280,7 +280,7 @@ class YellowPageSpider():
 
     def initList(self):
         self.keywords=[]
-        self.originurls=[]
+        self.homepageUrls=[]
         self.urls=[]
         self.contacturls=[]
         self.titles=[]
