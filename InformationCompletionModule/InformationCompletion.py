@@ -10,6 +10,7 @@ from WebSearchModule import ContactInforFinder,UrlFinder
 urlFinder=UrlFinder.GoogleSpider()
 contactFinder=ContactInforFinder.ContactFinder()
 
+
 class InforCompletion():
     def __init__(self):
         #数据库连接

@@ -4,6 +4,8 @@
 """
 主要包含了邮箱过滤以及网站过滤规则
 """
+filterMails=[]
+filterWebs=[]
 def mailFiltered(url):
     global filterMails
     if not filterMails:

@@ -12,19 +12,20 @@ from time import sleep
 import urllib ,urllib2
 import cookielib
 import sqlite3
-import re
+import re,string
 from bs4 import BeautifulSoup
 urllib2.socket.setdefaulttimeout(30)
 import chardet
 import threading
-
+from Queue import Queue
 from InputModule import Inputs,FliterRegular
+from DealPageThread import DealPageThread
 
 class YellowPageSpider():
     def __init__(self):
         #多线程
         self.lock=threading.RLock()
-
+        self.queue=Queue()
         #数据库连接
         self.con = sqlite3.connect('../database.db')
         self.cur = self.con.cursor()
@@ -32,11 +33,12 @@ class YellowPageSpider():
         #基本属性
         self.htmlfile=""
         self.soup=""
+        self.word=""
         self.country=""
         self.category=""
         self.title=""
         self.url=""
-        self.originurl = ''
+        self.originurl=""
         self.goalurl=""
         self.seed=""
         self.max=0
@@ -148,6 +150,7 @@ class YellowPageSpider():
             if maillist:
                 email=maillist[0]
 
+        tel=""
         if tels:
             tel=tels[0].text.replace("&nbsp;"," ").strip()
 
@@ -226,7 +229,7 @@ class YellowPageSpider():
         """
         if FliterRegular.mailFiltered(onetuple[5]):
             return
-        sql='INSERT INTO Information (Keyword,Url,Homepage,Name,Country,Email,Address,Tel,RawInformation,SearchTimes) VALUES(?,?,?,?,?,?,?,?,?,?)'
+        sql='INSERT INTO Information (Keyword,Category,Url,Homepage,Name,Country,Email,Address,Tel,RawInformation,SearchTimes,HaveForm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
         print onetuple[3]+": "+onetuple[5]+"\n  Address: "+onetuple[6]
         try:
             self.cur.execute(sql,onetuple)
@@ -359,6 +362,7 @@ class YellowPageSpider():
             except:
                 rawInformation=""
             searchTimes=0
+            haveForm=0
             tupleList.append((keyword,
                               category,
                               url,
@@ -369,57 +373,54 @@ class YellowPageSpider():
                               address,
                               tel,
                               rawInformation,
-                              searchTimes)
+                              searchTimes,
+                              haveForm)
             )
 
         return tupleList
 
-    def printTotalResults(self,max,nowlocation=""):
+    def printTotalResults(self,max=0,nowlocation="",titles=("looking_for","page","location")):
         """
         第一次获取时需要知道一共有多少个结果数，如果有定义max，要进行处理
         """
         if nowlocation:
-            self.goalurl=self.formUrl("looking_for",self.word,"page",self.page,"location",nowlocation,"1")
+            self.goalurl=self.formUrl(titles[0],self.word,titles[1],self.page,titles[2],nowlocation,"1")
         else:
-            self.goalurl=self.formUrl("looking_for",self.word,"page",self.page,"","","0")
-
+            self.goalurl=self.formUrl(titles[0],self.word,titles[1],self.page,"","","0")
+        print self.goalurl
         self.getMax()
         self.max=int(int(self.maxitem)/self.pageItems)+1
-        try:
-            if int(max)!=0:
-                if int(max)<self.max :
-                    self.max=int(max)
-        except:
-            pass
+
+        if max!=0:
+            if max<self.max:
+                self.max=max
+
         print "there are %s results." % self.maxitem
 
-    def mainGetUrls(self,word="led light bulbs",max=0,local=0,allInformationInList="1"):
+    def mainGetUrls(self,word="led light bulbs",max=0,local=0,allInformationInList="1",titles=("looking_for","page","location")):
         self.max=max
         self.word=word
         self.page=1
-        self.goalurl=self.formUrl("looking_for",self.word,"page",self.page,"","","0")
-        if  local=="1":
+        self.goalurl=self.formUrl(titles[0],self.word,titles[1],self.page,"","","0")
+        if  local==1:
             locals=Inputs.getLocals()
             if locals:
                 for l in locals:
                     print "正在获取地区："+l
-                    self.printTotalResults(max)
+                    self.printTotalResults(max,titles=titles)
 
                     print " 正在获取每一个分页的信息."
                     self.page=1
                     for p in range(1,self.max+1):
                         self.page=p
-                        self.goalurl=self.formUrl("looking_for",self.word,"page",self.page,"location",l,"1")
+                        self.goalurl=self.formUrl(titles[0],self.word,titles[1],self.page,titles[2],l,"1")
                         url=self.goalurl
                         print "Now dealing Location ："+l
                         print "Dealing page: ",p
                         if allInformationInList=="1":
                             #全部信息都在列表页中
-                            self.initList()
-                            self.dealContactPage(self.goalurl)
-                            tupleList=self.formTupleList()
-                            self.saveInforList(tupleList)
-                            print "分页: ",str(p)," 的信息已经处理完毕并写入数据库"
+                            self.queue.put((url,self.word,self.category,self.country))
+                            print "分页: ",str(p)," 的信息已经获取完毕,等待处理"
                         else:
                         #全部信息不都在列表页中，需要进入获取
                             self.getPageUrls(url)
@@ -429,29 +430,26 @@ class YellowPageSpider():
                         print "已经获得了所有分页信息，准备写入Url数据库."
                         self.saveUrlList()
                         self.contacturls=[]
-                    print "休息一分钟后继续获取下一个地区"
-                    sleep(60)
+                    #print "休息一分钟后继续获取下一个地区"
+                    #sleep(60)
 
                 print "成功！"
 
 
         else:
-            self.printTotalResults(max)
+            self.printTotalResults(max,titles=titles)
 
             print " 正在处理每一个分页的信息."
             self.page=1
             for p in range(1,self.max+1):
                 self.page=p
-                self.goalurl=self.formUrl("looking_for",self.word,"page",self.page,"","","0")
+                self.goalurl=self.formUrl(titles[0],self.word,titles[1],self.page,"","","0")
                 url=self.goalurl
                 print "Dealing page: ",p
 
                 if allInformationInList=="1":
                     #全部信息都在列表页中
-                    self.initList()
-                    self.dealContactPage(self.goalurl)
-                    tupleList=self.formTupleList()
-                    self.saveInforList(tupleList)
+                    self.queue.put((url,self.word,self.category,self.country))
 
                 else:
                     #全部信息不都在列表页中，需要进入获取
@@ -478,29 +476,63 @@ class YellowPageSpider():
             self.updateUrlDB()
             self.initList()
 
-    def main(self,max=0,local=0,threadlimit=10,allInformationInList="1"):
+    def startThreadPool(self,threadlimit):
+        """
+        需要子类重载
+        """
+        threads=[]
+        for i in range(threadlimit):
+            t=DealPageThread(self.queue,self.pageItems)
+            t.setDaemon(True)
+            threads.append(t)
+            t.start()
+        return threads
+
+    def main(self,titles=("looking_for","page","location"),allInformationInList="1"):
+
+        max,threadlimit,local=self.showScreenInfor()
+
         print "程序开始运行："
         keys=Inputs.readKeywords()
         #开始对每个关键词进行处理
+
+        #开启多线程
+        threads=self.startThreadPool(threadlimit)
+
         for word in keys:
             print "正在处理的类别与关键词是",word
             self.category=word.split(":")[0]
             keyword=word.split(":")[1]
-            self.mainGetUrls(keyword,max,local,allInformationInList)
+            self.mainGetUrls(keyword,max,local,allInformationInList,titles)
         if allInformationInList!='1':
-            self.mainMiningUrlDB(threadLimit)
+            self.mainMiningUrlDB(threadlimit)
+
+        self.queue.join()
 
         print "程序全部运行完毕，成功。"
 
+    def showScreenInfor(self):
+        max=raw_input("请输入你要获取的最大页数，默认值是:0,即可自动获取数并判断最大页 >>>")
+        if not max:
+            max=0
+        else:
+            max=string.atoi(max)
+        threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
+        if not threadLimit:
+            threadLimit=10
+        else:
+            threadLimit=string.atoi(threadLimit)
+        local=raw_input("是否查询Location.txt中的地区，是请输入1，不是请输入0，默认值为：0 >>>")
+        if not local:
+            local=0
+        else:
+            local=string.atoi(local)
+
+        return max,threadLimit,local
+
 if __name__ == "__main__":
     yellowpage=YellowPageSpider()
-
-    max=raw_input("请输入你要获取的最大页数，默认值是:0,即可自动获取数并判断最大页 >>>")
-    threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
-    local=raw_input("是否查询Location.txt中的地区，是请输入1，不是请输入0，默认值为：0 >>>")
-
-    yellowpage.setOriginUrl('http://www.amarillas.cl/buscar/')
-    yellowpage.setCountry("CL")
+    yellowpage.setOriginUrl('http://www.192.com/businesses/search/?&')
+    yellowpage.setCountry("UK")
     yellowpage.setPageMaxItems(35)
-
-    yellowpage.main(max,threadLimit,local)
+    yellowpage.main()
