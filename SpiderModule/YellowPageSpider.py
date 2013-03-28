@@ -192,10 +192,10 @@ class YellowPageSpider():
             t.setDaemon(True)
             threads.append(t)
             t.start()
-        print "开始从数据库获取Url并获取具体公司信息中."
+        print "Getting url from database,then deal with the url to get company imformation."
         for t in threads:
             t.join(self.waittime)
-        print "成功获得这部分公司信息了。"
+        print "succeed in getting companies information。"
 
     def saveToUrlDB(self,onetuple,database="Urls_Amarillas"):
         """
@@ -208,7 +208,7 @@ class YellowPageSpider():
         try:
             self.cur.execute(sql,onetuple)
         except BaseException,e:
-            print e,"该数据已经存在数据库中"
+            print "waring:",e
 
     def saveUrlList(self):
         """
@@ -219,8 +219,8 @@ class YellowPageSpider():
             self.saveToUrlDB((buffer(self.word),"",self.contacturls[i],self.country,"0",'0'))
         try:
             self.con.commit()
-        except:
-            print "该数据已经存在数据库中"
+        except BaseException,e:
+            print "warning",e
 
     def saveToInformationDB(self,onetuple):
         """
@@ -230,11 +230,11 @@ class YellowPageSpider():
         if FliterRegular.mailFiltered(onetuple[5]):
             return
         sql='INSERT INTO Information (Keyword,Category,Url,Homepage,Name,Country,Email,Address,Tel,RawInformation,SearchTimes,HaveForm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
-        print onetuple[3]+": "+onetuple[5]+"\n  Address: "+onetuple[6]
+        print "The company's email has got:"+onetuple[5]
         try:
             self.cur.execute(sql,onetuple)
         except BaseException,e:
-            print e,"该数据已存在Information数据库中."
+            print "warning",e
 
     def saveInforList(self,tupleList):
         """
@@ -247,7 +247,7 @@ class YellowPageSpider():
         try:
             self.con.commit()
         except BaseException,e:
-            print e,"该数据已存在Information数据库中."
+            print "warning",e
 
     def fetchFromDB(self,limit=10,database="Urls_Amarillas"):
         self.cur.execute("""SELECT * FROM %s WHERE Dealed=0 Limit %d""" % (database,limit))
@@ -275,11 +275,11 @@ class YellowPageSpider():
             try:
                 self.cur.execute(sql)
             except BaseException,e:
-                print e,"无法更新Dealed参数 ."
+                print "warning:cannot update the dealed argument.",e
         try:
             self.con.commit()
         except BaseException,e:
-            print e,"无法更新Dealed参数 ."
+            print "warning:cannot update the dealed argument.",e
 
     def getPageUrls(self,url,feature="more urchin gaf"):
         htmlfile=self.getpage(url)
@@ -406,10 +406,10 @@ class YellowPageSpider():
             locals=Inputs.getLocals()
             if locals:
                 for l in locals:
-                    print "正在获取地区："+l
+                    print "Finding location: "+l
                     self.printTotalResults(max,titles=titles)
 
-                    print " 正在获取每一个分页的信息."
+                    print " dealing every page."
                     self.page=1
                     for p in range(1,self.max+1):
                         self.page=p
@@ -420,26 +420,26 @@ class YellowPageSpider():
                         if allInformationInList=="1":
                             #全部信息都在列表页中
                             self.queue.put((url,self.word,self.category,self.country))
-                            print "分页: ",str(p)," 的信息已经获取完毕,等待处理"
+                            print "page: ",str(p)," information has got."
                         else:
                         #全部信息不都在列表页中，需要进入获取
                             self.getPageUrls(url)
 
 
                     if allInformationInList!="1":
-                        print "已经获得了所有分页信息，准备写入Url数据库."
+                        print "Succeed in getting all pages,ready to write to DB."
                         self.saveUrlList()
                         self.contacturls=[]
                     #print "休息一分钟后继续获取下一个地区"
                     #sleep(60)
 
-                print "成功！"
+                print "Success！"
 
 
         else:
             self.printTotalResults(max,titles=titles)
 
-            print " 正在处理每一个分页的信息."
+            print " dealing every page."
             self.page=1
             for p in range(1,self.max+1):
                 self.page=p
@@ -456,11 +456,11 @@ class YellowPageSpider():
                     self.getPageUrls(url)
 
             if allInformationInList!="1":
-                print "已经获得了所有分页信息，准备写入Url数据库."
+                print "Succeed in getting all pages,ready to write to DB."
                 self.saveUrlList()
                 self.contacturls=[]
 
-            print "成功！"
+            print "Success！"
 
     def mainMiningUrlDB(self,threadLimit=10):
         if (not threadLimit)or threadLimit=="0":
@@ -492,7 +492,7 @@ class YellowPageSpider():
 
         max,threadlimit,local=self.showScreenInfor()
 
-        print "程序开始运行："
+        print "Program Begin: "
         keys=Inputs.readKeywords()
         #开始对每个关键词进行处理
 
@@ -500,7 +500,7 @@ class YellowPageSpider():
         threads=self.startThreadPool(threadlimit)
 
         for word in keys:
-            print "正在处理的类别与关键词是",word
+            print "Now ,the category and word are",word,",they are in progress."
             self.category=word.split(":")[0]
             keyword=word.split(":")[1]
             self.mainGetUrls(keyword,max,local,allInformationInList,titles)
@@ -509,20 +509,20 @@ class YellowPageSpider():
 
         self.queue.join()
 
-        print "程序全部运行完毕，成功。"
+        print "All finish!!! \n END。"
 
     def showScreenInfor(self):
-        max=raw_input("请输入你要获取的最大页数，默认值是:0,即可自动获取数并判断最大页 >>>")
+        max=raw_input("Please input the max pages.(default:0),It can automatically get the max pages.  >>>")
         if not max:
             max=0
         else:
             max=string.atoi(max)
-        threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
+        threadLimit=raw_input("Please input the number of threads.(default:10)>>>")
         if not threadLimit:
             threadLimit=10
         else:
             threadLimit=string.atoi(threadLimit)
-        local=raw_input("是否查询Location.txt中的地区，是请输入1，不是请输入0，默认值为：0 >>>")
+        local=raw_input("Do you want to query Locations in Location.txt? If True,input 1,else input 0.(default:0) >>>")
         if not local:
             local=0
         else:

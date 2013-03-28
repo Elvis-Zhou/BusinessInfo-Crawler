@@ -78,7 +78,7 @@ class ContactFinder():
     def fetchFromDB(self,limit=10):
         self.cur.execute("""SELECT * FROM Urls WHERE Dealed=0 Limit %d""" % limit)
         result=self.cur.fetchmany(limit)
-        print "正在从数据库获取链接"
+        print "Fetch urls from Database"
         if result:
             for i in range(0,len(result)):
                 try:
@@ -121,7 +121,9 @@ class ContactFinder():
         if not url.startswith("http"):
             self.contacturls[i]=result
             return result
-        print "正在链接找寻相关联系方式页面： ",url
+        if FliterRegular.websiteFiltered(url):
+            return result
+        print "Dealing the url to get the contact page:",url
 
         htmlfile=self.getpage(url)
         soup=BeautifulSoup(htmlfile,'lxml')
@@ -179,11 +181,19 @@ class ContactFinder():
 
     def findContactPageUrl(self,url):
         result=""
-        print "正在链接找寻相关联系方式页面： ",url
+        if not url:
+            return result
+        if not url.startswith("http"):
+            return result
+        if FliterRegular.websiteFiltered(url):
+            return
+        print "Dealing the url to get the contact page:",url
 
         htmlfile=self.getpage(url)
-        soup=BeautifulSoup(htmlfile,'lxml')
-
+        try:
+            soup=BeautifulSoup(htmlfile,'lxml')
+        except BaseException:
+            return ""
         support=soup.find("a",{"href":re.compile(r".*?support.*?",re.DOTALL|re.IGNORECASE)})
         if support:
             if support["href"].startswith("/"):
@@ -250,7 +260,11 @@ class ContactFinder():
         if not url:
             return
         print "Analyzing the web page to get the contact information: ",url
+
         htmlfile=self.getpage(url)
+        if not htmlfile:
+            t=("","","","")
+            return t
         #print htmlfile
         #address re pattern ([\w\d\s]*,){3,8}([\w\d\s~.]*?.){1,5}
         #(?:[\w\d\s]*,){3,10}(?:[\w\d\s]*\.)
@@ -321,23 +335,21 @@ class ContactFinder():
         except:
             emails=""
 
+        address=""
         if addresses:
             address=addresses[0].strip()
-        else:
-            address=""
 
+        tel=""
         if tels:
             tel=tels[0].strip()
-        else:
-            tel=""
 
+        email=""
         if emails:
             tempemails=[]
             for e in emails:
                 tempemails.append(e.strip())
             email="\n".join(tempemails)
-        else:
-            email=""
+
 
         try:
             rawinformation=ExtMainText.main(htmlfile)
@@ -424,7 +436,7 @@ class ContactFinder():
         try:
             self.cur.execute(sql,onetuple)
         except BaseException,e:
-            print e,"the email is existed."
+            print "warning",e
 
     def saveList(self,tupleList):
         count=len(tupleList)
@@ -434,7 +446,7 @@ class ContactFinder():
         try:
             self.con.commit()
         except BaseException,e:
-            print e,"the email is existed."
+            print "warning",e
 
     def updateUrlDB(self):
         for url in self.originurls:
@@ -442,11 +454,11 @@ class ContactFinder():
             try:
                 self.cur.execute(sql)
             except BaseException,e:
-                print e,"cannot update Dealed ."
+                print "warning",e,"cannot update Dealed ."
         try:
             self.con.commit()
         except BaseException,e:
-            print e,"cannot update Dealed ."
+            print "warning",e,"cannot update Dealed ."
 
     def initList(self,threadLimit=10):
         if (not threadLimit)or threadLimit=="0":
@@ -467,7 +479,7 @@ class ContactFinder():
 
 
     def main(self,threadLimit=10):
-        print "程序开始运行"
+        print "Program Begin:"
         self.initList()
 
         if (not threadLimit)or threadLimit=="0":
@@ -484,11 +496,11 @@ class ContactFinder():
             self.updateUrlDB()
             #self.con.commit()
             self.initList()
-        print "数据库中的链接都处理完成了."
+        print "All finish."
 
 if __name__ == "__main__":
     finder=ContactFinder()
 
-    threadLimit=raw_input("请输入你要使用的线程数，默认值为：10 >>>")
+    threadLimit=raw_input("please input the number of threads ,default: 10 >>>")
     finder.main(threadLimit)
     #finder.initList()

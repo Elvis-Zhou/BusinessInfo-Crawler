@@ -25,7 +25,7 @@ class InforCompletion():
         self.emails=[]
 
     def fetchFromDB(self,limit=10,database="Information"):
-        print "正在从数据库中获取数据"
+        print "Getting information from Database."
         self.cur.execute("""SELECT * FROM %s WHERE SearchTimes=0 AND Email="" Limit %d""" % (database,limit))
         result=self.cur.fetchmany(limit)
         if result:
@@ -48,13 +48,22 @@ class InforCompletion():
     def getInformation(self,i):
         name=self.names[i]
         url=urlFinder.getBestUrl(name)
+        if not url:
+            return
         contactUrl=contactFinder.findContactPageUrl(url)
-        result=contactFinder.dealContactPage(contactUrl)
-        email=result[2]
-        print "找到email: ",result[2]
+        if contactUrl:
+            result=contactFinder.dealContactPage(contactUrl)
+        else :
+            result=""
+        if result:
+            email=result[2]
+            if email:
+                print "got email: ",result[2]
+                self.emails[i]=email
+
         self.homepageUrls[i]=url
         self.urls[i]=contactUrl
-        self.emails[i]=email
+
 
     def buildInformationList(self):
         threads=[]
@@ -64,35 +73,37 @@ class InforCompletion():
             threads.append(t)
             t.start()
         for t in threads:
-            t.join(300)
+            t.join(60)
 
     def updateInformaionDB(self):
         """
         更新数据库中处理过的Informaion公司信息
         """
         for i in range(len(self.names)):
-            sql="""UPDATE Informaion SET SearchTimes="1" AND Email=%s WHERE Name="%s" """ % (self.emails[i],self.names[i])
+            sql="""UPDATE Information SET SearchTimes="1",Email="%s",Homepage="%s" WHERE Name="%s" """ % (self.emails[i],self.names[i],self.homepageUrls[i])
             try:
                 self.cur.execute(sql)
-                print "更新该条目的信息",self.names[i],"  ",self.emails[i]
+                print "update information",self.names[i],"  ",self.emails[i]
             except BaseException,e:
-                print e,"无法更新SearchTimes参数 ."
+                print "warning:",e
         try:
             self.con.commit()
         except BaseException,e:
-            print e,"无法更新SearchTimes参数 ."
+            print "warning:",e
 
     def main(self,threadlimit):
         #获取待补全的队列
         self.threadlimit=threadlimit
-        print "程序开始"
+        print "Program Begin:"
+
         while self.fetchFromDB(threadlimit):
+
             self.buildInformationList()
             self.updateInformaionDB()
             self.initList()
-        print "程序执行完毕"
+        print "Program Finish!"
 
 if __name__=="__main__":
-    threadlimit=raw_input("请输入线程数（默认为10），使信息补全程序开始运行：")
+    threadlimit=raw_input("Please input the number of threads.(default:10),then it will start. >>>")
     complete=InforCompletion()
     complete.main(int(threadlimit))
