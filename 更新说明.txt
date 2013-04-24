@@ -207,3 +207,17 @@ v2.1 更新说明
 3、多email的处理方式根据用户需求有变化：现在在联系方式页面中，匹配到的所有email，会每行一个存储。
 用户希望的数据时1条一行，这样方便邮件群发软件使用。
 4、删除部分中文print，统一英文输出显示。
+
+v2.2 更新说明
+1、信息补全的策略：
+ 调用公司名字，自动输入google里面
+寻找到公司链接
+进入网站，寻找contact page
+找到以后，更新数据库中的信息
+2、针对不同国家采用不同的搜索引擎
+例如这样：
+if country==uk then  google.co.uk/?=led&gl=uk
+if country==cl then google.com.cl/?=led&gl=cl
+3、解决遗漏categroy 和keyword的bug
+4、对于把google当成黄页的时候，就也把结果理解成 公司名字，国家，主页。
+然后运行那个补全就能自动补全了，这样逻辑上面google黄页也和yell，192一样的了，不需要单独对待了。

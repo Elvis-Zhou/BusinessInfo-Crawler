@@ -38,9 +38,14 @@ class ContactFinder():
         self.addresses=[]
         self.tels=[]
         self.rawInformations=[]
+        self.formUrls=[]
+        self.categories=[]
 
         self.filterWebs=[]
         self.filterMails=[]
+
+        self.contactPageRegular=[]
+        self.formPageUrlRegular=[]
 
         self.cj = cookielib.CookieJar()
         self.opener=urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
@@ -113,7 +118,7 @@ class ContactFinder():
             self.urls[i]=self.dealUrl(url)
             i+=1
 
-    def findContactPageUrl(self,url,i):
+    def findContactPageUrlIndex(self,url,i):
         result=""
         if not url:
             self.contacturls[i]=result
@@ -125,58 +130,25 @@ class ContactFinder():
             return result
         print "Dealing the url to get the contact page:",url
 
+        self.contactPageRegular=Inputs.contactPageRegular()
+
         htmlfile=self.getpage(url)
         soup=BeautifulSoup(htmlfile,'lxml')
 
-        support=soup.find("a",{"href":re.compile(r".*?support.*?",re.DOTALL|re.IGNORECASE)})
-        if support:
-            if support["href"].startswith("/"):
-                self.contacturls[i]=url+support["href"]
-                return url+support["href"]
-            elif len(support["href"])<25:
-                self.contacturls[i]=url+"/"+support["href"]
-                return url+"/"+support["href"]
-            else:
-                self.contacturls[i]=support["href"]
-                return support["href"]
+        shortUrllength=25
 
-        contact=soup.find("a",{"href":re.compile(r".*?contact.*?",re.DOTALL|re.IGNORECASE)})
-        if contact:
-            if contact["href"].startswith("/"):
-                self.contacturls[i]=url+contact["href"]
-                return url+contact["href"]
-            elif len(contact["href"])<25:
-                self.contacturls[i]=url+"/"+contact["href"]
-                return url+"/"+contact["href"]
-            else:
-                self.contacturls[i]=contact["href"]
-                return contact["href"]
-
-        about=soup.find("a",{"href":re.compile(r".*?about.*?",re.DOTALL|re.IGNORECASE)})
-        if about:
-            if about["href"].startswith("/"):
-                self.contacturls[i]=url+about["href"]
-                return url+about["href"]
-            elif len(about["href"])<25:
-                self.contacturls[i]=url+"/"+about["href"]
-                return url+"/"+about["href"]
-            else:
-                self.contacturls[i]=about["href"]
-                return about["href"]
-
-        findus=soup.find("a",{"href":re.compile(r".*?find[-]us.*?",re.DOTALL|re.IGNORECASE)})
-        if findus:
-            if findus["href"].startswith("/"):
-                self.contacturls[i]=url+findus["href"]
-                return url+findus["href"]
-            elif len(findus["href"])<25:
-                self.contacturls[i]=url+"/"+findus["href"]
-                return url+"/"+findus["href"]
-            else:
-                self.contacturls[i]=findus["href"]
-                return findus["href"]
-
-        #self.contacturls.append("")
+        for regular in self.contactPageRegular:
+            contact=soup.find("a",{"href":re.compile(r".*?%s.*?" % regular,re.DOTALL|re.IGNORECASE)})
+            if contact:
+                if contact["href"].startswith("/"):
+                    self.contacturls[i]=url+contact["href"]
+                    return url+contact["href"]
+                elif len(contact["href"])<shortUrllength:
+                    self.contacturls[i]=url+"/"+contact["href"]
+                    return url+"/"+contact["href"]
+                else:
+                    self.contacturls[i]=contact["href"]
+                    return contact["href"]
         return ""
 
     def findContactPageUrl(self,url):
@@ -189,66 +161,34 @@ class ContactFinder():
             return
         print "Dealing the url to get the contact page:",url
 
+        self.contactPageRegular=Inputs.contactPageRegular()
+        shortUrllength=25
+
         htmlfile=self.getpage(url)
         try:
             soup=BeautifulSoup(htmlfile,'lxml')
         except BaseException:
             return ""
-        support=soup.find("a",{"href":re.compile(r".*?support.*?",re.DOTALL|re.IGNORECASE)})
-        if support:
-            if support["href"].startswith("/"):
 
-                return url+support["href"]
-            elif len(support["href"])<25:
-
-                return url+"/"+support["href"]
-            else:
-
-                return support["href"]
-
-        contact=soup.find("a",{"href":re.compile(r".*?contact.*?",re.DOTALL|re.IGNORECASE)})
-        if contact:
-            if contact["href"].startswith("/"):
-
-                return url+contact["href"]
-            elif len(contact["href"])<25:
-
-                return url+"/"+contact["href"]
-            else:
-
-                return contact["href"]
-
-        about=soup.find("a",{"href":re.compile(r".*?about.*?",re.DOTALL|re.IGNORECASE)})
-        if about:
-            if about["href"].startswith("/"):
-
-                return url+about["href"]
-            elif len(about["href"])<25:
-
-                return url+"/"+about["href"]
-            else:
-
-                return about["href"]
-
-        findus=soup.find("a",{"href":re.compile(r".*?find[-]us.*?",re.DOTALL|re.IGNORECASE)})
-        if findus:
-            if findus["href"].startswith("/"):
-
-                return url+findus["href"]
-            elif len(findus["href"])<25:
-
-                return url+"/"+findus["href"]
-            else:
-
-                return findus["href"]
-
+        for regular in self.contactPageRegular:
+            contact=soup.find("a",{"href":re.compile(r".*?%s.*?" % regular,re.DOTALL|re.IGNORECASE)})
+            if contact:
+                if contact["href"].startswith("/"):
+                    #print url+contact["href"]
+                    return url+contact["href"]
+                elif len(contact["href"])<shortUrllength:
+                    #print url+"/"+contact["href"]
+                    return url+"/"+contact["href"]
+                else:
+                    #print contact["href"]
+                    return contact["href"]
         return ""
 
     def buildContactUrlList(self):
         threads=[]
         index=0
         for url in self.urls:
-            t=threading.Thread(target=self.findContactPageUrl,args=(url,index,))
+            t=threading.Thread(target=self.findContactPageUrlIndex,args=(url,index,))
             index+=1
             t.setDaemon(True)
             threads.append(t)
@@ -256,9 +196,12 @@ class ContactFinder():
         for t in threads:
             t.join()
 
-    def dealContactPage(self,url,i):
+    def dealContactPageIndex(self,url,i):
+        result=("","","","")
         if not url:
-            return
+            return result
+        if not url.startswith("http"):
+            return result
         print "Analyzing the web page to get the contact information: ",url
 
         htmlfile=self.getpage(url)
@@ -315,8 +258,11 @@ class ContactFinder():
         return result
 
     def dealContactPage(self,url):
+        result=("","","","")
         if not url:
-            return
+            return result
+        if not url.startswith("http"):
+            return result
         print "Analyzing the web page to get the contact information: ",url
         htmlfile=self.getpage(url)
 
@@ -356,7 +302,6 @@ class ContactFinder():
         except:
             rawinformation=""
 
-
         result=(address,tel,email,rawinformation)
 
         return result
@@ -365,7 +310,7 @@ class ContactFinder():
         threads=[]
         index=0
         for url in self.contacturls:
-            t=threading.Thread(target=self.dealContactPage,args=(url,index,))
+            t=threading.Thread(target=self.dealContactPageIndex,args=(url,index,))
             index+=1
             t.setDaemon(True)
             threads.append(t)
@@ -375,17 +320,28 @@ class ContactFinder():
 
     def formTupleList(self):
         tupleList=[]
+        #print len(self.keywords),len(self.urls),len(self.names),len(self.countries),len(self.emails),len(self.addresses),len(self.tels),len(self.rawInformations)
 
         for i in range(0,len(self.keywords)):
             try:
                 keyword=self.keywords[i]
             except:
                 keyword=""
-            #原来是url=self.urls[i]
+            try:
+                category=self.categories[i]
+            except:
+                category=""
+
             try:
                 url=self.contacturls[i]
             except:
                 url=""
+
+            try:
+                homepage=self.urls[i]
+            except:
+                homepage=""
+
             try:
                 name=self.names[i]
             except:
@@ -410,33 +366,162 @@ class ContactFinder():
                 rawInformation=self.rawInformations[i]
             except:
                 rawInformation=""
-
+            searchTimes=0
+            formUrl=""
             tupleList.append((keyword,
+                              category,
                               url,
+                              homepage,
                               name,
                               country,
                               email,
                               address,
                               tel,
-                              rawInformation)
+                              rawInformation,
+                              searchTimes,
+                              formUrl)
             )
 
         return tupleList
 
     def saveToInformationDB(self,onetuple):
-        if FliterRegular.websiteFiltered(onetuple[1]):
+        """
+        把单条的页面中的公司信息保存到数据库
+        不需要外部调用
+        """
+        if FliterRegular.websiteFiltered(onetuple[2]):
             return
-        if FliterRegular.mailFiltered(onetuple[4]):
+        if not onetuple[2].strip():
             return
-        if not onetuple[1].strip():
+        if FliterRegular.mailFiltered(onetuple[6]):
             return
-        sql='INSERT INTO Information (Keyword,Url,Name,Country,Email,Address,Tel,RawInformation) VALUES(?,?,?,?,?,?,?,?)'
-        print onetuple[1]+": "+onetuple[2]+ '  Email: ' +onetuple[4]
+        sql='SELECT ID FROM Form1 WHERE Name="%s" AND Country="%s"' % (onetuple[4],onetuple[5])
+        self.cur.execute(sql)
+        result=self.cur.fetchone()
+        if result:
+            return
+
+        nowid=0
+        try:
+            #插入ID
+            sql='INSERT INTO ID (id) VALUES(NULL)'
+            self.cur.execute(sql)
+            self.con.commit()
+            sql='SELECT max(id) FROM ID '
+            self.cur.execute(sql)
+            nowid=self.cur.fetchone()
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+        if not nowid:
+            return
+        else:
+            nowid=nowid[0]
 
         try:
-            self.cur.execute(sql,onetuple)
+            #插入表1,name
+            sql='INSERT INTO Form1 (id,Name,Country) VALUES(%s,"%s","%s")' % (nowid,onetuple[4],onetuple[5])
+            self.cur.execute(sql)
+            self.con.commit()
+            print "Finish the company: " ,onetuple[4],"   ",onetuple[5]
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
         except BaseException,e:
-            print "warning",e
+            print "warning:",e
+
+        try:
+            #插入表2,address
+            sql='INSERT INTO Form2 (id,Address,Information) VALUES(%s,"%s","%s")' % (nowid,onetuple[7],onetuple[9])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表3，email
+            emails=onetuple[6].split("\n")
+            if len(emails)>1:
+                for email in emails:
+                    sql='INSERT INTO Form3 (id,Email) VALUES(%s,"%s")' % (nowid,email)
+                    self.cur.execute(sql)
+            else:
+                sql='INSERT INTO Form3 (id,Email) VALUES(%s,"%s")' % (nowid,onetuple[6])
+                self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表4，tel
+            tels=onetuple[8].split("\n")
+            if len(tels)>1:
+                for tel in tels:
+                    sql='INSERT INTO Form4 (id,Tel) VALUES(%s,"%s")' % (nowid,tel)
+                    self.cur.execute(sql)
+            else:
+                sql='INSERT INTO Form4 (id,Tel) VALUES(%s,"%s")' % (nowid,onetuple[8])
+                self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表5,urls
+            sql='INSERT INTO Form5 (id,Homepage,Url,Formurl) VALUES(%s,"%s","%s","%s")' % (nowid,onetuple[3],onetuple[2],onetuple[11])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表6,searchtimes
+            sql='INSERT INTO Form6 (id,SearchTimes) VALUES(%s,"%s")' % (nowid,onetuple[10])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+
+        try:
+            #插入表7,keyword
+            sql='INSERT INTO Form7 (id,Keyword,Category) VALUES(%s,"%s","%s")' % (nowid,onetuple[0],onetuple[1])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+
+        try:
+            self.con.commit()
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.con.commit()
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
 
     def saveList(self,tupleList):
         count=len(tupleList)
@@ -475,8 +560,8 @@ class ContactFinder():
         self.addresses=["" for i in range(int(threadLimit))]
         self.tels=["" for i in range(int(threadLimit))]
         self.rawInformations=["" for i in range(int(threadLimit))]
-
-
+        self.formUrls=["" for i in range(int(threadLimit))]
+        self.categories=["" for i in range(int(threadLimit))]
 
     def main(self,threadLimit=10):
         print "Program Begin:"

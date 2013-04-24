@@ -202,7 +202,7 @@ class YellowPageSpider():
         把单条的页面中的公司链接保存到数据库待处理
         不需要外部调用
         """
-        sql='INSERT INTO  %s (Keyword,Title,Url,Country,Dealed,HaveForm) VALUES(?,?,?,?,?,?)' % database
+        sql='INSERT INTO  %s (Keyword,Title,Url,Country,Dealed) VALUES(?,?,?,?,?)' % database
         print "saving "+ onetuple[2]
 
         try:
@@ -216,7 +216,9 @@ class YellowPageSpider():
         """
         count=len(self.contacturls)
         for i in range(0,count):
+            #self.lock.acquire()
             self.saveToUrlDB((buffer(self.word),"",self.contacturls[i],self.country,"0",'0'))
+            #self.lock.release()
         try:
             self.con.commit()
         except BaseException,e:
@@ -227,14 +229,146 @@ class YellowPageSpider():
         把单条的页面中的公司信息保存到数据库
         不需要外部调用
         """
-        if FliterRegular.mailFiltered(onetuple[5]):
+        if FliterRegular.mailFiltered(onetuple[6]):
             return
-        sql='INSERT INTO Information (Keyword,Category,Url,Homepage,Name,Country,Email,Address,Tel,RawInformation,SearchTimes,HaveForm) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
-        print "The company's email has got:"+onetuple[5]
+        sql='SELECT ID FROM Form1 WHERE Name="%s" AND Country="%s"' % (onetuple[4],onetuple[5])
+        self.cur.execute(sql)
+        result=self.cur.fetchone()
+        if result:
+            return
+
+        nowid=0
         try:
-            self.cur.execute(sql,onetuple)
+            #插入ID
+            sql='INSERT INTO ID (id) VALUES(NULL)'
+            self.cur.execute(sql)
+            self.con.commit()
+            sql='SELECT max(id) FROM ID '
+            self.cur.execute(sql)
+            nowid=self.cur.fetchone()
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
         except BaseException,e:
-            print "warning",e
+            print "warning:",e
+        if not nowid:
+            return
+        else:
+            nowid=nowid[0]
+
+        try:
+            #插入表1,name
+            sql='INSERT INTO Form1 (id,Name,Country) VALUES(%s,"%s","%s")' % (nowid,onetuple[4],onetuple[5])
+            self.cur.execute(sql)
+            self.con.commit()
+            print "Finish the company: " ,onetuple[4],"   ",onetuple[5]
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表2,address
+            sql='INSERT INTO Form2 (id,Address,Information) VALUES(%s,"%s","%s")' % (nowid,onetuple[7],onetuple[9])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表3，email
+            emails=onetuple[6].split("\n")
+            if len(emails)>1:
+                for email in emails:
+                    sql='INSERT INTO Form3 (id,Email) VALUES(%s,"%s")' % (nowid,email)
+                    self.cur.execute(sql)
+            else:
+                sql='INSERT INTO Form3 (id,Email) VALUES(%s,"%s")' % (nowid,onetuple[6])
+                self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表4，tel
+            tels=onetuple[8].split("\n")
+            if len(tels)>1:
+                for tel in tels:
+                    sql='INSERT INTO Form4 (id,Tel) VALUES(%s,"%s")' % (nowid,tel)
+                    self.cur.execute(sql)
+            else:
+                sql='INSERT INTO Form4 (id,Tel) VALUES(%s,"%s")' % (nowid,onetuple[8])
+                self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表5,urls
+            sql='INSERT INTO Form5 (id,Homepage,Url,Formurl) VALUES(%s,"%s","%s","%s")' % (nowid,onetuple[3],onetuple[2],onetuple[11])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表6,searchtimes
+            sql='INSERT INTO Form6 (id,SearchTimes) VALUES(%s,"%s")' % (nowid,onetuple[10])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            #插入表7,keyword
+            sql='INSERT INTO Form7 (id,Keyword,Category) VALUES(%s,"%s","%s")' % (nowid,onetuple[0],onetuple[1])
+            self.cur.execute(sql)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.cur.execute(sql)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+
+        try:
+            self.con.commit()
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            self.con.commit()
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+        """
+        sql='INSERT INTO Information (Keyword,Category,Url,Homepage,Name,Country,Email,Address,Tel,RawInformation,SearchTimes,formUrl) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
+        print onetuple
+        print "The company's email has got:"+onetuple[6]
+        try:
+            cur.execute(sql,onetuple)
+        except sqlite3.ProgrammingError,e:
+            sleep(1)
+            cur.execute(sql,onetuple)
+            print e,"sleep 1s"
+        except BaseException,e:
+            print "warning:",e
+        """
 
     def saveInforList(self,tupleList):
         """
@@ -242,8 +376,9 @@ class YellowPageSpider():
         """
         count=len(tupleList)
         for i in range(0,count):
+            self.lock.acquire()
             self.saveToInformationDB(tupleList[i])
-
+            self.lock.release()
         try:
             self.con.commit()
         except BaseException,e:
@@ -362,7 +497,7 @@ class YellowPageSpider():
             except:
                 rawInformation=""
             searchTimes=0
-            haveForm=0
+            formUrl=""
             tupleList.append((keyword,
                               category,
                               url,
@@ -374,7 +509,7 @@ class YellowPageSpider():
                               tel,
                               rawInformation,
                               searchTimes,
-                              haveForm)
+                              formUrl)
             )
 
         return tupleList
@@ -415,7 +550,7 @@ class YellowPageSpider():
                         self.page=p
                         self.goalurl=self.formUrl(titles[0],self.word,titles[1],self.page,titles[2],l,"1")
                         url=self.goalurl
-                        print "Now dealing Location ："+l
+                        print "Now dealing Location: ",l
                         print "Dealing page: ",p
                         if allInformationInList=="1":
                             #全部信息都在列表页中

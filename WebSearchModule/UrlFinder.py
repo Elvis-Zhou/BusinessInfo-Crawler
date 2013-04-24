@@ -8,6 +8,8 @@ import cookielib
 import sqlite3
 from bs4 import BeautifulSoup
 urllib2.socket.setdefaulttimeout(30)
+import string
+from InputModule import Inputs,FliterRegular
 
 class GoogleSpider():
     def __init__(self):
@@ -76,7 +78,7 @@ class GoogleSpider():
         try:
             self.cur.execute(sql)
         except BaseException,e:
-            print e,"该数据已经存在数据库中"
+            print "warning: ",e
 
     def saveList(self):
         count=len(self.urls)
@@ -86,13 +88,19 @@ class GoogleSpider():
         self.titles=[]
         try:
             self.con.commit()
-        except:
-            print "该数据已经存在数据库中"
+        except BaseException,e:
+            print "warning: ",e
 
-    def getBestUrl(self,word="led light bulbs"):
-        keyword={
-            "q":word
-        }
+    def getBestUrl(self,word="led light bulbs",country=""):
+        if country:
+            keyword={
+                "q":word,
+                "cr":"country"+country
+            }
+        else:
+            keyword={
+                "q":word
+            }
         url=self.originurl % (urllib.urlencode(keyword),str(0))
         htmlfile=self.getpage(url)
         soup=BeautifulSoup(htmlfile,'lxml')
@@ -101,43 +109,104 @@ class GoogleSpider():
 
         try:
             tempurl=tempUrls[0].a["href"][7:]
-
+            end=tempurl.find("/",7)
+            if end!=-1:
+                tempurl=tempurl[0:end]
             return tempurl
         except BaseException:
             return ""
 
-    def main(self,word="led light bulbs",max=1000,sleeptime=0):
-        if not word:
-            word="led light bulbs"
+    def main(self):
+
+        max,threadLimit,local,sleeptime=self.showScreenInfor()
+
+        print "Program Begin: "
+        keys=Inputs.readKeywords()
+        #开始对每个关键词进行处理
+
+        for word in keys:
+            print "Now ,the word is:",word,".\nIt is in progress."
+            keyword=word.strip()
+            self.mainGetUrls(keyword,max,sleeptime,local)
+
+        print "All finish."
+
+    def mainGetUrls(self,word="led light bulbs",max=1000,sleeptime=0,local=0):
+        countries=[]
+        if local==1:
+            countries=Inputs.getCountries()
         if (not max)or max=="0":
             max=1000
         else:
             max=int(max)*10
-        self.max=max
-        self.country="UK"
-        self.word=word
-        keyword={
-            "q":word
-        }
-        for i in range(0,self.max,10):
-            self.page=i
-            print "page:",i/10,"item:",i
-            url=self.originurl % (urllib.urlencode(keyword),str(self.page))
-            htmlfile=self.getpage(url)
-            self.findTitleAndUrl(htmlfile)
-            self.saveList()
-            if (not sleeptime)or sleeptime=="0":
-                sleeptime=5
-            if sleeptime:
-                print "程序自动休息:"+str(sleeptime)+" 秒后继续"
-                sleep(int(sleeptime))
-        print "程序运行结束."
+        if local==1:
+            for country in countries:
+                print "now dealing country:"+country
+                self.max=max
+                self.country=country
+                self.word=word
+                keyword={
+                    "q":word,
+                    "cr":"country"+country
+                }
+                for i in range(0,self.max,10):
+                    self.page=i
+                    print "page:",i/10,"item:",i
+                    url=self.originurl % (urllib.urlencode(keyword),str(self.page))
+                    htmlfile=self.getpage(url)
+                    self.findTitleAndUrl(htmlfile)
+                    self.saveList()
+                    if (not sleeptime)or sleeptime=="0":
+                        sleeptime=5
+                    if sleeptime:
+                        print "waiting for :"+str(sleeptime)+" second,then continue"
+                        sleep(int(sleeptime))
+        else:
+            self.max=max
+            self.country="UK"
+            self.word=word
+            keyword={
+                "q":word
+            }
+            for i in range(0,self.max,10):
+                self.page=i
+                print "page:",i/10,"item:",i
+                url=self.originurl % (urllib.urlencode(keyword),str(self.page))
+                htmlfile=self.getpage(url)
+                self.findTitleAndUrl(htmlfile)
+                self.saveList()
+                if (not sleeptime)or sleeptime=="0":
+                    sleeptime=5
+                if sleeptime:
+                    print "waiting for :"+str(sleeptime)+" second,then continue"
+                    sleep(int(sleeptime))
+
+    def showScreenInfor(self):
+        max=raw_input("Please input the max pages.(default:0),It can automatically get the max pages.  >>>")
+        if not max:
+            max=0
+        else:
+            max=string.atoi(max)
+        threadLimit=raw_input("Please input the number of threads.(default:10)>>>")
+        if not threadLimit:
+            threadLimit=10
+        else:
+            threadLimit=string.atoi(threadLimit)
+        local=raw_input("Do you want to query Countries in Country.txt? If True,input 1,else input 0.(default:0) >>>")
+        if not local:
+            local=0
+        else:
+            local=string.atoi(local)
+
+        sleeptime=raw_input("Please input the sleep time (second) .(default:5) >>>")
+        if not sleeptime:
+            sleeptime=0
+        else:
+            sleeptime=string.atoi(sleeptime)
+
+        return max,threadLimit,local,sleeptime
 
 if __name__ == "__main__":
     google=GoogleSpider()
-    print google.getBestUrl("Abracad Architects")
-    word=raw_input("请输入你要查询的关键词，例如默认为：led light bulbs >>>")
-    max=raw_input("请输入你要获取的最大页数，默认值是:100页 >>>")
-    sleeptime=raw_input("请输入爬取完一页后休息的时间（秒），默认值为：5 >>>")
-
-    google.main(word,max,sleeptime)
+    #print google.getBestUrl("Abracad Architects")
+    google.main()
