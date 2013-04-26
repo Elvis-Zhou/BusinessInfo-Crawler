@@ -229,12 +229,27 @@ class YellowPageSpider():
         把单条的页面中的公司信息保存到数据库
         不需要外部调用
         """
+        if not onetuple[4].strip():
+            return
         if FliterRegular.mailFiltered(onetuple[6]):
             return
         sql='SELECT ID FROM Form1 WHERE Name="%s" AND Country="%s"' % (onetuple[4],onetuple[5])
         self.cur.execute(sql)
         result=self.cur.fetchone()
         if result:
+            nowid=result[0]
+            try:
+                #插入表7,keyword
+                sql='INSERT INTO Form7 (id,Keyword,Category) VALUES(%s,"%s","%s")' % (nowid,onetuple[0],onetuple[1])
+                self.cur.execute(sql)
+                self.con.commit()
+            except sqlite3.ProgrammingError,e:
+                sleep(1)
+                self.cur.execute(sql)
+                print e,"sleep 1s"
+            except BaseException,e:
+                print "warning:",e
+
             return
 
         nowid=0
@@ -542,7 +557,7 @@ class YellowPageSpider():
             if locals:
                 for l in locals:
                     print "Finding location: "+l
-                    self.printTotalResults(max,titles=titles)
+                    self.printTotalResults(max,l,titles)
 
                     print " dealing every page."
                     self.page=1
